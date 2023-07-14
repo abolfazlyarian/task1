@@ -39,7 +39,11 @@ class mongoDBManager:
         Args:
             collection_name (str): The name of the collection to create.
         """
+        if collection_name in self.database.list_collection_names():
+            self.database.drop_collection(collection_name)
+
         self.database.create_collection(collection_name)
+        
 
     def insert_dataframe_data(self, collection_name, dataframe):
         """
@@ -52,36 +56,7 @@ class mongoDBManager:
         collection = self.database[collection_name]
         records = dataframe.to_dict(orient="records")
         collection.insert_many(records)
-
-    def insert_csv_data(self, collection_name, csv_file):
-        """
-        Inserts data from a CSV file into the specified collection.
-
-        Args:
-            collection_name (str): The name of the collection to insert data into.
-            csv_file (str): The path to the CSV file containing the data.
-        """
-        collection = self.database[collection_name]
-        with open(csv_file, "r") as file:
-            reader = csv.DictReader(file)
-            for row in reader:
-                collection.insert_one(row)
-
-    def watch_directory(self, directory):
-        """
-        Watches the specified directory for changes and updates MongoDB collections accordingly.
-
-        Args:
-            directory (str): The path to the directory to watch for changes.
-        """
-        while True:
-            for file in os.listdir(directory):
-                if file.endswith(".csv"):
-                    csv_path = os.path.join(directory, file)
-                    collection_name = os.path.splitext(file)[0]
-                    self.insert_csv_data(collection_name, csv_path)
-                    print(f"Inserted data from {csv_path} into {collection_name}")
-            time.sleep(60)
+    
 
 
 class dataExtractor:
@@ -102,12 +77,11 @@ class dataExtractor:
     
     def pre_process_actions(self, csv_url):
         self.actions_df = self.read_csv_data(csv_url, columns=['account_id', 'book_id', 'creation_date']).dropna()
-        self.actions_df['creation_date'] = pd.to_datetime(self.actions_df['creation_date']).dt.date
-        # self.actions_df = self.actions_df.groupby('account_id', group_keys=True).apply(lambda x: x.sort_values('creation_date', ascending=False)).reset_index(drop=True)
+        self.actions_df['creation_date'] = pd.to_datetime(self.actions_df['creation_date']).dt.ceil('s')
+        # self.actions_df['creation_date'] = pd.to_datetime(self.actions_df['creation_date']).dt.date
+        self.actions_df = self.actions_df.groupby('account_id', group_keys=True).apply(lambda x: x.sort_values('creation_date', ascending=False)).reset_index(drop=True)
         self.actions_df = self.actions_df[pd.to_datetime(self.actions_df['creation_date']).dt.year == 2022]
-        self.actions_df['score'] = 5
-        # self.rating()
-        self.actions_df['creation_date'] = pd.to_datetime(self.actions_df['creation_date'])
+        self.rating()
 
     def rating(self):
         self.actions_df['score'] = 5
@@ -133,12 +107,12 @@ class dataExtractor:
         rating_mean = self.book_df['rating'].mean()
         self.book_df['rating'] = self.book_df['rating'].fillna(value=rating_mean)
 
-    def merge_tables(self, on='book_id'):
+    def merge_tables(self, on='book_id', tok_column='categories'):
         self.merge_df = self.actions_df.merge(self.book_df, on=on, how='inner')
         self.merge_df['rating_count'] = self.merge_df.groupby('account_id')['book_id'].transform('count')
-        self.tokenizer(column='categories')
+        self.tokenizer(column=tok_column)
         self.data_df = pd.concat([self.merge_df[['account_id', 'book_id','creation_date', 'score', 'price', 'number_of_page',
-                                                'PhysicalPrice', 'rating', 'rating_count', ]],
+                                                'PhysicalPrice', 'rating', 'rating_count']],
                                   pd.DataFrame(self.feature_encodings['input_ids'])], axis=1)
         
         self.data_df.columns = self.data_df.columns.astype(str)
@@ -148,34 +122,32 @@ class dataExtractor:
         self.feature_encodings = tokenizer(self.merge_df[column].tolist(), truncation=True, padding=True, max_length=64)
 
 
-
-def main():
-    # MongoDB connection details
-    mongodb_url = "mongodb://localhost:27017/"
-    database_name = "taaghche"
+def main(mongodb_url, database_name, action_url, book_url):
 
     # Create an instance of MongoDBManager
     mongo_manager = mongoDBManager(mongodb_url, database_name)
 
-    # Create two collections
+    # Create collections
     mongo_manager.create_collection("actions")
     mongo_manager.create_collection("book_data")
     mongo_manager.create_collection("merge")
 
+    # Data extracting
     data_extractor = dataExtractor()
-    data_extractor.pre_process_actions(csv_url='dataset/actions.csv')
-    data_extractor.pre_process_book(csv_url='dataset/book_data.csv')
+    data_extractor.pre_process_actions(csv_url=action_url)
+    data_extractor.pre_process_book(csv_url=book_url)
     data_extractor.merge_tables()
 
-
-    # Insert data from the first CSV file into table1
+    # Insert Data to collections
     mongo_manager.insert_dataframe_data("actions", data_extractor.actions_df)
     mongo_manager.insert_dataframe_data("book_data", data_extractor.book_df)
     mongo_manager.insert_dataframe_data("merge", data_extractor.data_df)
 
-    # Watch the directory for changes
-    # mongo_manager.watch_directory("path/to/watched_directory")
-
 
 if __name__ == "__main__":
-    main()
+    main(mongodb_url="mongodb://localhost:27017/",
+         database_name="taaghche",
+         action_url='dataset/actions.csv',
+         book_url='dataset/book_data.csv')
+    
+ 
