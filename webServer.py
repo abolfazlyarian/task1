@@ -2,13 +2,13 @@ from flask import Flask, request, make_response, jsonify
 import pandas as pd 
 import numpy as np
 import pymongo
+import time
 import logging
 from sklearn.model_selection import train_test_split
 from transformers import AutoTokenizer
 import xgboost as xgb
 import pickle
-
-
+from sklearn.metrics import ndcg_score, average_precision_score
 
 app = Flask(__name__)
 
@@ -62,7 +62,6 @@ class mongoDBManager:
         df = pd.DataFrame(data)
         return df
 
-
 def dataProvider(mongodb_url, database_name, coolection_name):
     # Create an instance of MongoDBManager
     mongo_manager = mongoDBManager(mongodb_url, database_name)
@@ -97,17 +96,17 @@ def preProcess(df):
         return data_df
 
 
-
 @app.route('/eval', methods = ['POST'])
 def eval():
     data = request.json
-    
+
     book_df = dataProvider(mongodb_url="mongodb://localhost:27017/",
                            database_name='taaghche',
                            coolection_name='book_data')
     if book_df.empty:
         return {'result': 'book collection not found'}
 
+    
     user_id = data['uid']
     book_list = data['book_list']
     data = pd.DataFrame({'account_id': [user_id] * len(book_list),
@@ -119,6 +118,7 @@ def eval():
     pred_df = preProcess(merge)
 
     # recommending
+
     filename = 'model.pkl'
     model = pickle.load(open(filename, 'rb'))
     features = ['price', 'number_of_page', 'PhysicalPrice', 'rating', 'rating_count', '0', '1', '2', '3', '4', '5', '6', '7', '8']
@@ -134,7 +134,7 @@ def eval():
         recom.append({"rank":i+1,
                     "book":book_df[book_df["book_id"] == row["book_id"]].to_dict(orient='records'),
                     "score":float(prob_scores[topk_idx][i]) })
-        
+
     # Process the data and generate a response
     response_data = {'result': recom}
     
@@ -152,8 +152,8 @@ def train():
     data_df = dataProvider(mongodb_url="mongodb://localhost:27017/",
                            database_name='taaghche',
                            coolection_name='merge')
-    # if data_df == False:
-    #     pass
+    if data_df.empty:
+        return {'result': 'merge collection not found'}
 
     train, test = train_test_split(data_df, test_size=0.2, random_state=42)
     train = train.sort_values('account_id').reset_index(drop=True)
@@ -175,11 +175,17 @@ def train():
         eval_group=[list(test_query)],
         verbose =True
     )
+
+    true_relevance = np.asarray([test[target]])
+    scores = np.asarray([model.predict(test[features])])
+    model_eval = ndcg_score(true_relevance, scores)
+    
+
     filename = 'model.pkl'
     pickle.dump(model, open(filename, 'wb'))
 
     # Process the data and generate a response
-    response_data = {'result': True}
+    response_data = {'status': 'model trained', 'ndcg_score': model_eval}
     
     # Create a response object
     response = make_response(response_data, 200)
