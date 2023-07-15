@@ -1,0 +1,13 @@
+FROM python:3.10-slim
+
+WORKDIR /usr/src/app
+RUN apt-get update 
+
+COPY requirements_data.txt .
+RUN pip install -r requirements_data.txt
+
+# COPY dataset ./dataset
+RUN mkdir dataset
+COPY data_extractor.py .
+
+CMD ["python", "data_extractor.py"]

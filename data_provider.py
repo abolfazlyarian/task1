@@ -2,7 +2,6 @@ from flask import Flask, request, make_response, jsonify
 import numpy as np
 import pandas as pd
 import pymongo
-from transformers import AutoTokenizer
 import os
 import logging
 import time
@@ -78,7 +77,7 @@ def dataProvider(mongodb_url, database_name, coolection_name):
     if df.empty:
         # start to extraxting data with request to data_extractor web server
         logging.info("Collection not found. Initiating extraction process. Please wait...")
-        requests.get('http://127.0.0.1:5001/update/collections', timeout=3)
+        requests.get('http://data-extractor:5001/update/collections', timeout=3)
         time.sleep(10*60)
 
         for _ in range(3):
@@ -118,7 +117,7 @@ def provide():
     # Return the response
     return response
 
-@app.route('/provideMerge', methods = ['GET'])
+@app.route('/pmerge', methods = ['GET'])
 def provide_merge():
 
     data = request.json
@@ -157,5 +156,5 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO,
                        format='[%(asctime)s] --> %(message)s')
   
-    app.run(host='0.0.0.0',port=5003)
+    app.run(host='0.0.0.0',port=5002)
  

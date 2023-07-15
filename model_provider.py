@@ -34,7 +34,7 @@ def preProcess(df):
 def predict():
     data = request.json
 
-    res = requests.get('http://127.0.0.1:5003/provideMerge', json=data)
+    res = requests.get('http://data-provider:5002/pmerge', json=data)
     
     # data parsing
     json_records = res.json()
@@ -82,7 +82,7 @@ def predict():
 @app.route('/train', methods = ['GET'])
 def train():
     
-    res = requests.get('http://127.0.0.1:5003/provide', json={"collection_name": "merge"})
+    res = requests.get('http://data-provider:5002/provide', json={"collection_name": "merge"})
     # data parsing
     json_records = res.json()
     if not json_records['status']:
@@ -136,4 +136,4 @@ def train():
 if __name__ == '__main__':
    logging.basicConfig(level=logging.INFO,
                        format='[%(asctime)s] --> %(message)s')
-   app.run(debug=True,host='0.0.0.0',port=5002)
+   app.run(debug=True,host='0.0.0.0',port=5000)
