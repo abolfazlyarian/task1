@@ -102,8 +102,8 @@ def preProcess(df):
         return data_df
 
 
-@app.route('/eval', methods = ['POST'])
-def eval():
+@app.route('/predict', methods = ['POST'])
+def predict():
     data = request.json
     # read data from database (Data_provider)
     book_df = dataProvider(mongodb_url=os.environ.get("ME_CONFIG_MONGODB_URL",default="mongodb://localhost:27017/"),
