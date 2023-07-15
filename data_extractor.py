@@ -1,3 +1,4 @@
+from flask import Flask, request, make_response, jsonify
 import numpy as np
 import pandas as pd
 import pymongo
@@ -5,7 +6,7 @@ from transformers import AutoTokenizer
 import os
 import logging
 
-
+app = Flask(__name__)
 
 class mongoDBManager:
     """
@@ -193,6 +194,37 @@ class dataExtractor:
         tokenizer = AutoTokenizer.from_pretrained("HooshvareLab/bert-base-parsbert-uncased")
         self.feature_encodings = tokenizer(self.merge_df[column].tolist(), truncation=True, padding=True, max_length=64)
 
+@app.route('/update/collections', methods = ['GET'])
+def update_collections():
+    # Create an instance of MongoDBManager
+    mongo_manager = mongoDBManager(os.environ.get("ME_CONFIG_MONGODB_URL",default="mongodb://localhost:27017/"),
+                                   os.environ.get("MONGODB_NAME",default="taaghche"))
+
+    # Create collections
+    mongo_manager.create_collection("actions")
+    mongo_manager.create_collection("book_data")
+    mongo_manager.create_collection("merge")
+
+    # Data extracting
+    data_extractor = dataExtractor()
+    data_extractor.pre_process_actions(csv_url= os.environ.get("action_url" ,default='dataset/actions.csv'))
+    data_extractor.pre_process_book(csv_url= os.environ.get('book_url',default='dataset/book_data.csv'))
+    data_extractor.merge_tables()
+
+    # Insert Data to collections
+    mongo_manager.insert_dataframe_data("actions", data_extractor.actions_df)
+    mongo_manager.insert_dataframe_data("book_data", data_extractor.book_df)
+    mongo_manager.insert_dataframe_data("merge", data_extractor.data_df)
+
+    # Process the data and generate a response
+    response_data = {'status': 'collections updated'}
+    
+    # Create a response object
+    response = make_response(response_data, 200)
+    
+    # Return the response
+    return response
+
 
 def main(mongodb_url, database_name, action_url, book_url):
 
@@ -224,4 +256,5 @@ if __name__ == "__main__":
          action_url= os.environ.get("action_url" ,default='dataset/actions.csv'),
          book_url= os.environ.get('book_url',default='dataset/book_data.csv'))
     
+    app.run(host='0.0.0.0',port=5001)
  
