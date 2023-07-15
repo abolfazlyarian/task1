@@ -6,6 +6,7 @@ Taaghche is a project that aims to answer the question of what is the appropriat
 
 The Taaghche project has the following directory structure:
 
+'''
 taaghche
 ├── data_extractor.py
 ├── data_provider.py
@@ -26,7 +27,7 @@ taaghche
 ├── README.md
 ├── requirements_data.txt
 └── requirements_model.txt
-
+'''
 
 The project consists of the following components:
 
