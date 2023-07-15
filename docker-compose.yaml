@@ -1,0 +1,30 @@
+version: "3"
+services:
+    db:
+      image: mongo
+      ports:
+      - 27017:27017
+    extractor:
+      build:
+        dockerfile: Dockerfile.extractor
+      environment:
+        ME_CONFIG_MONGODB_URL: ${ME_CONFIG_MONGODB_URL}
+        MONGODB_NAME: ${MONGODB_NAME}
+        action_url: ${action_url}
+        book_url: ${book_url}
+      ports:
+      - 5001:5001
+    model-ltr:
+      build:
+        dockerfile: Dockerfile.model
+      environment:
+        ME_CONFIG_MONGODB_URL: ${ME_CONFIG_MONGODB_URL}
+        MONGODB_NAME: ${MONGODB_NAME}
+      ports:
+      - 5000:5000
+    api-gateway:
+      image: nginx
+      volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      ports:
+      - 8080:8080
