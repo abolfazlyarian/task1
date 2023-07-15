@@ -2,7 +2,6 @@ from flask import Flask, request, make_response, jsonify
 import pandas as pd 
 import numpy as np
 import pymongo
-import time
 import logging
 from sklearn.model_selection import train_test_split
 from transformers import AutoTokenizer
@@ -43,8 +42,10 @@ class mongoDBManager:
         """
         if collection_name in self.database.list_collection_names():
             self.database.drop_collection(collection_name)
+            logging.info("old %s collection dropped", collection_name)
 
         self.database.create_collection(collection_name)
+        logging.info("create %s collection", collection_name)
         
     def read_collection_data(self, collection_name):
         """
@@ -65,7 +66,7 @@ class mongoDBManager:
 def dataProvider(mongodb_url, database_name, coolection_name):
     # Create an instance of MongoDBManager
     mongo_manager = mongoDBManager(mongodb_url, database_name)
-
+    df = pd.DataFrame()
     # Reading data from a collection
     for _ in range(3):
         try:
@@ -76,10 +77,11 @@ def dataProvider(mongodb_url, database_name, coolection_name):
     
     if df.empty:
         logging.info('collection not found.')
-    
+
     return pd.DataFrame()
 
 def preProcess(df):
+    # tokenizing (feature engineering)
     tokenizer = AutoTokenizer.from_pretrained("HooshvareLab/bert-base-parsbert-uncased")
     df['rating_count'] = df.groupby('account_id')['book_id'].transform('count')
     feature_encodings = tokenizer(df['categories'].tolist(), truncation=True, padding=True, max_length=64)
@@ -87,6 +89,7 @@ def preProcess(df):
                     'PhysicalPrice', 'rating', 'rating_count']],
                     pd.DataFrame(feature_encodings['input_ids'])], axis=1)
     
+    # concat features
     data_df.columns = data_df.columns.astype(str)
     if data_df.shape[1] < 16:
         col = list(map(str,range(data_df.shape[1]-7,9)))
@@ -99,14 +102,14 @@ def preProcess(df):
 @app.route('/eval', methods = ['POST'])
 def eval():
     data = request.json
-
+    # read data from database (Data_provider)
     book_df = dataProvider(mongodb_url="mongodb://localhost:27017/",
                            database_name='taaghche',
                            coolection_name='book_data')
     if book_df.empty:
         return {'result': 'book collection not found'}
 
-    
+    # create data
     user_id = data['uid']
     book_list = data['book_list']
     data = pd.DataFrame({'account_id': [user_id] * len(book_list),
@@ -117,8 +120,7 @@ def eval():
     
     pred_df = preProcess(merge)
 
-    # recommending
-
+    # recommending use model
     filename = 'model.pkl'
     model = pickle.load(open(filename, 'rb'))
     features = ['price', 'number_of_page', 'PhysicalPrice', 'rating', 'rating_count', '0', '1', '2', '3', '4', '5', '6', '7', '8']
@@ -148,24 +150,27 @@ def eval():
 
 @app.route('/train', methods = ['GET'])
 def train():
-
+    # read data from database (Data_provider)
     data_df = dataProvider(mongodb_url="mongodb://localhost:27017/",
                            database_name='taaghche',
                            coolection_name='merge')
     if data_df.empty:
         return {'result': 'merge collection not found'}
 
+    # split data into train and test
     train, test = train_test_split(data_df, test_size=0.2, random_state=42)
     train = train.sort_values('account_id').reset_index(drop=True)
     test = test.sort_values('account_id').reset_index(drop=True)
     
+    # create query group for xgboost
     train_query = train['account_id'].value_counts().sort_index()
     test_query = test['account_id'].value_counts().sort_index()
 
     features = [i for i in train.columns.to_list() if i not in ['account_id','book_id','creation_date','score'] ]
     target = 'score'
 
-    model = xgb.XGBRanker(objective='rank:pairwise', n_estimators=10, random_state=0,learning_rate=0.01)
+    # train xgboost model for learning-to-rank task
+    model = xgb.XGBRanker(objective='rank:pairwise', n_estimators=50, random_state=0,learning_rate=0.1)
     model.fit(
         train[features],
         train[target],
@@ -176,6 +181,7 @@ def train():
         verbose =True
     )
 
+    # calculate NDCG score for similarity of predictive rank and ground truth
     true_relevance = np.asarray([test[target]])
     scores = np.asarray([model.predict(test[features])])
     model_eval = ndcg_score(true_relevance, scores)
@@ -196,4 +202,4 @@ def train():
 if __name__ == '__main__':
    logging.basicConfig(level=logging.INFO,
                        format='[%(asctime)s] --> %(message)s')
-   app.run(debug=True)
+   app.run(port=5000)
