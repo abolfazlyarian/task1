@@ -1,0 +1,5 @@
+numpy
+pandas
+pymongo
+transformers
+flask
