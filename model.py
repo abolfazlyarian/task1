@@ -8,6 +8,7 @@ from transformers import AutoTokenizer
 import xgboost as xgb
 import pickle
 import os
+import time
 from sklearn.metrics import ndcg_score
 
 app = Flask(__name__)
@@ -75,6 +76,7 @@ def dataProvider(mongodb_url, database_name, coolection_name):
             return df
         except:
             logging.info('collection not found. trying to found ...')
+            time.sleep(3)
     
     if df.empty:
         logging.info('collection not found.')
@@ -129,7 +131,7 @@ def eval():
         response_data = {'result': 'model not found. please train the model'}
         return response_data
     
-    features = ['price', 'number_of_page', 'PhysicalPrice', 'rating', 'rating_count', '0', '1', '2', '3', '4', '5', '6', '7', '8']
+    features = ['account_id', 'book_id', 'price', 'number_of_page', 'PhysicalPrice', 'rating', 'rating_count', '0', '1', '2', '3', '4', '5', '6', '7', '8']
     preds = np.abs(model.predict(pred_df[features]))
     prob_scores = preds
 
@@ -171,8 +173,8 @@ def train():
     # create query group for xgboost
     train_query = train['account_id'].value_counts().sort_index()
     test_query = test['account_id'].value_counts().sort_index()
-
-    features = [i for i in train.columns.to_list() if i not in ['account_id','book_id','creation_date','score'] ]
+    
+    features = [i for i in train.columns.to_list() if i not in ['creation_date','score'] ]
     target = 'score'
 
     # train xgboost model for learning-to-rank task
@@ -208,4 +210,4 @@ def train():
 if __name__ == '__main__':
    logging.basicConfig(level=logging.INFO,
                        format='[%(asctime)s] --> %(message)s')
-   app.run(host='0.0.0.0',port=5000)
+   app.run(debug=True,host='0.0.0.0',port=5000)
