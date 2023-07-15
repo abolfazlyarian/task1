@@ -7,6 +7,7 @@ from sklearn.model_selection import train_test_split
 from transformers import AutoTokenizer
 import xgboost as xgb
 import pickle
+import os
 from sklearn.metrics import ndcg_score
 
 app = Flask(__name__)
@@ -103,8 +104,8 @@ def preProcess(df):
 def eval():
     data = request.json
     # read data from database (Data_provider)
-    book_df = dataProvider(mongodb_url="mongodb://localhost:27017/",
-                           database_name='taaghche',
+    book_df = dataProvider(mongodb_url=os.environ.get("ME_CONFIG_MONGODB_URL",default="mongodb://localhost:27017/"),
+                           database_name=os.environ.get("MONGODB_NAME",default="taaghche"),
                            coolection_name='book_data')
     if book_df.empty:
         return {'result': 'book collection not found'}
@@ -156,8 +157,8 @@ def eval():
 @app.route('/train', methods = ['GET'])
 def train():
     # read data from database (Data_provider)
-    data_df = dataProvider(mongodb_url="mongodb://localhost:27017/",
-                           database_name='taaghche',
+    data_df = dataProvider(mongodb_url= os.environ.get("ME_CONFIG_MONGODB_URL",default="mongodb://localhost:27017/"),
+                           database_name= os.environ.get("MONGODB_NAME",default="taaghche"),
                            coolection_name='merge')
     if data_df.empty:
         return {'result': 'merge collection not found'}
@@ -207,4 +208,4 @@ def train():
 if __name__ == '__main__':
    logging.basicConfig(level=logging.INFO,
                        format='[%(asctime)s] --> %(message)s')
-   app.run(port=5000)
+   app.run(host='0.0.0.0',port=5000)
