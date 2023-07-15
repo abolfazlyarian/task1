@@ -6,20 +6,20 @@ Taaghche is a project that aims to answer the question of what is the appropriat
 
 The Taaghche project has the following directory structure:
 
-'''
+```
 taaghche
-├── data_extractor.py
-├── data_provider.py
 ├── dataset
 │ ├── actions.csv
 │ └── book_data.csv
-├── docker-compose2.yaml
-├── docker-compose.yaml
 ├── dockerfile
 │ ├── Dockerfile.extractor
 │ ├── Dockerfile.model
 │ ├── Dockerfile.model-provider
 │ └── Dockerfile.provider
+├── data_extractor.py
+├── data_provider.py
+├── docker-compose2.yaml
+├── docker-compose.yaml
 ├── model.pkl
 ├── model_provider.py
 ├── model.py
@@ -27,7 +27,7 @@ taaghche
 ├── README.md
 ├── requirements_data.txt
 └── requirements_model.txt
-'''
+```
 
 The project consists of the following components:
 
