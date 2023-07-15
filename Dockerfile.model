@@ -1,0 +1,12 @@
+FROM python:3.10-slim
+
+WORKDIR /usr/src/app
+RUN apt-get update 
+
+COPY requirements_model.txt .
+RUN pip install -r requirements_model.txt
+RUN pip install -U scikit-learn
+
+COPY model.py .
+
+CMD ["python", "model.py"]
