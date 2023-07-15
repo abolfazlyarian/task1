@@ -61,7 +61,9 @@ After designing a suitable model to solve the problem, the Taaghche system is co
 
 ## Dataset
 
-The dataset containing user-book interactions and book information is included in a compressed file you received via email. It consists of two parts:
+The [taaghche dataset](https://drive.google.com/file/d/1fZVfkDyBiFLh4jxdf24ZGBS5lH1UUp3y/view?usp=sharing) containing user-book interactions and book information is included in a compressed file you received via email. It consists of two parts:
+
+
 
 **User-Book Interaction Data**:
 
