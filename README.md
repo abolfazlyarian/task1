@@ -47,7 +47,7 @@ The project consists of the following components:
 ## System Architecture
 
 After designing a suitable model to solve the problem, the Taaghche system is composed of the following five components that communicate with each other using a microservices architecture:
-![System Architecture](https://drive.google.com/file/d/1ZeCfRpV3evpP5PWflwOMbspkoGNdbUe4/view?usp=sharing)
+![System Architecture](https://drive.google.com/uc?export=view&id=1ZeCfRpV3evpP5PWflwOMbspkoGNdbUe4)
 
 1. **Data Extractor**: This component is responsible for reading the dataset from an external source. It simplifies the problem by assuming that the input sources are currently only available on disk in CSV format. The read data is then validated and stored in a database.
 
